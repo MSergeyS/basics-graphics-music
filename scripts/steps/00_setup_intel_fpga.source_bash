@@ -545,7 +545,9 @@ configure_fpga_quartus ()
         then
             "$quartus_pgm_full_real_path" --no_banner -c "$cable_name_1" --mode=jtag -o "P;$config_file@2"
         else
-            "$quartus_pgm_full_real_path" --no_banner -c "$cable_name_1" --mode=jtag -o "P;$config_file"
+            # "$quartus_pgm_full_real_path" --no_banner -c "$cable_name_1" --mode=jtag -o "P;$config_file"
+            # "$quartus_pgm_full_real_path" --no_banner -c "$cable_name_1" "fpga_project.cdf"
+			"$quartus_pgm_full_real_path" --no_banner -c "$cable_name_1" --mode=jtag -o "S;SOCVHPS" -o "P;$config_file"
         fi
     else
         error "cannot detect a USB-Blaster cable connected"  \
