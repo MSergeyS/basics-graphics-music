@@ -1,12 +1,15 @@
 
-// If the board has pins FLT, DMP, FMT and XMT,
-// then XMT should be connected to 3.3v,
-// rest of them (optionally) to the ground.
+// For PCM5102A. If the board has pins FLT, DMP, FMT and XMT,
+// then pin XMT should be connected to 3.3v,
+// rest of them (optionally) to the ground. Pin FMT to the ground (I2S mode)!
+// For Digilent Pmod AMP3 jumper JP3 is loaded (I2S mode)!
 
 module i2s_audio_out
 # (
-    parameter clk_mhz = 50,
-              in_res  = 16        // sound samples resolution, see tone_table.svh
+    parameter clk_mhz             = 50,
+              in_res              = 16,   // Sound samples resolution, see tone_table.svh
+              align_right         = 1'b0, // For I2S = 0. For PT8211 DAC (Least Significant Bit Justified) = 1.
+              offset_by_one_cycle = 1'b1  // For I2S = 1. For Left Justified Audio Data Format = 0.
 )
 (
     input                 clk,
@@ -18,34 +21,57 @@ module i2s_audio_out
     output                sdata
 );
 
-    localparam MCLK_DIV = $clog2 (clk_mhz * 1000 / 12500);  // MCLK  - 12.5 MHz
-    localparam BCLK_DIV = $clog2 (clk_mhz * 1000 / 3125 );  // BCLK  - 3.125 MHz serial clock - for a 48 KHz Sample Rate
-    localparam CLK_DIV  = $clog2 (clk_mhz * 1000 / 50   );  // LRCLK - 50 KHz, the slowest clock
+// Standard frequencies are 12.288 MHz, 3.072 MHz and 48 KHz. 
+// We are using frequencies somewhat higher but with the same relationship 256:64:1
+    localparam MCLK_BIT   =  $clog2 ( clk_mhz - 4 ) - 4; // clk_mhz range (12-19) (20-35) (36-67) (68-131)
+    localparam BCLK_BIT   =  MCLK_BIT + 2;
+    localparam LRCLK_BIT  =  BCLK_BIT + 6;
+    localparam CLK_DIV_DATA_OFFSET = { BCLK_BIT { 1'b1 } };
 
-    logic  [CLK_DIV - 1:0] clk_div;
-    logic  [         31:0] shift;
+    logic  [LRCLK_BIT - 1:0] clk_div;
+    logic  [           31:0] shift;
 
-    always_ff @ (posedge clk or posedge reset)
-        if (reset)
-            clk_div <= 0;
-        else
-            clk_div <= clk_div + 1'b1;
-
-    assign mclk  = clk_div [ MCLK_DIV - 1];
-    assign bclk  = clk_div [ BCLK_DIV - 1];
-    assign lrclk = clk_div [ CLK_DIV  - 1];
+    assign mclk  = MCLK_BIT ? clk_div [MCLK_BIT - 1] : clk;
+    assign bclk  = clk_div [BCLK_BIT  - 1];
+    assign lrclk = clk_div [LRCLK_BIT - 1];
 
     assign sdata = shift   [           31];
 
-    always_ff @ (posedge clk or posedge reset)
-        if (reset)
-            shift <= 0;
+    always_ff @ ( posedge clk or posedge reset )
+        if ( reset )
+            clk_div <= '0;
+        else
+            clk_div <= clk_div + 1'b1;
+
+    always_ff @ ( posedge clk or posedge reset )
+        if ( reset )
+            shift <= '0;
         else
         begin
-            if (clk_div [CLK_DIV - 2:0] == 'b1)
-                shift <= data_in << in_res;
-            else if (clk_div [BCLK_DIV - 1:0] == 'b1)
-                shift <= shift << 1;
+            if ( ! offset_by_one_cycle )
+            begin
+                if ( ! align_right )
+                begin
+                    if      ( clk_div [LRCLK_BIT - 2:0] == '1  )            // Data front position (MSB) regarding LRCLK or WS position
+                              shift   [31    -: in_res] <= 32' ( data_in ); // Put the data starting with the highest bytes, on the left side
+                    else if ( clk_div [BCLK_BIT  - 1:0] == '1  )
+                              shift   <= shift << 1'b1;                     // Serial shift on the left side
+                end
+                else
+                begin
+                    if      ( clk_div [LRCLK_BIT - 2:0] == { { LRCLK_BIT - 2 { 1'b0 } }, 1'b1 } ) 
+                              shift   [0     +: in_res] <= 32' ( data_in ); // Put the data on the right side of the LRCLK or WS, align_right
+                    else if ( clk_div [BCLK_BIT  - 1:0] == '1  )
+                              shift   <= shift << 1'b1;
+                end
+            end
+            else
+            begin
+                if      ( clk_div [LRCLK_BIT - 2:0] == CLK_DIV_DATA_OFFSET ) // Data front position (MSB) regarding LRCLK position + 1 bit
+                            shift [31    -: in_res] <= 32' ( data_in );      // Put the data starting with the highest bytes, on the left side
+                else if ( clk_div [BCLK_BIT  - 1:0] == CLK_DIV_DATA_OFFSET ) // Data end position (LSB) regarding LRCLK position + 1 + in_res
+                            shift <= shift << 1'b1;                          // Serial shift on the left side
+            end
         end
 
 endmodule
