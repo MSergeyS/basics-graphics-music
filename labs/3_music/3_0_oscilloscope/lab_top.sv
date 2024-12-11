@@ -9,8 +9,8 @@ module lab_top
                w_digit       = 8,
                w_gpio        = 100,
 
-               screen_width  = 640,
-               screen_height = 480,
+               screen_width  = 1280,
+               screen_height = 1024,
 
                w_red         = 4,
                w_green       = 4,
