@@ -553,6 +553,9 @@ configure_fpga_quartus ()
             fi		
         fi
     else
+        # TODO: Put check for error in WSL
+        # if [ "$OSTYPE" = "linux-gnu" ] && [ -n "${WSL_DISTRO_NAME-}" ]
+
         error "cannot detect a USB-Blaster cable connected"  \
               "for $fpga_board FPGA board"
     fi
