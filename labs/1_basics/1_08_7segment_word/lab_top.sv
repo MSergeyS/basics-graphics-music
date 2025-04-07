@@ -57,6 +57,9 @@ module lab_top
     inout        [w_gpio  - 1:0] gpio
 );
 
+    localparam integer BLINKPERIOD = 17;
+    localparam integer SPEEDRUNLINE = 25;
+
     //------------------------------------------------------------------------
 
     // assign led        = '0;
@@ -71,14 +74,17 @@ module lab_top
     //------------------------------------------------------------------------
 
     logic [31:0] cnt;
+    wire restart = (cnt [SPEEDRUNLINE+3:SPEEDRUNLINE] == 'd10);
 
     always_ff @ (posedge clk or posedge rst)
         if (rst)
             cnt <= '0;
+        else if (restart)
+            cnt <= '0;
         else
             cnt <= cnt + 1'd1;
 
-    wire enable = (cnt [22:0] == '0);
+    wire enable = (cnt [BLINKPERIOD-1:0] == '0);
 
     //------------------------------------------------------------------------
 
@@ -110,19 +116,41 @@ module lab_top
         P     = 8'b1100_1110,
         G     = 8'b1011_1100,
         A     = 8'b1110_1110,
+        L     = 8'b0001_1100,
+        zero  = 8'b1111_1100,
+        one   = 8'b0110_0000,
+        two   = 8'b1101_1010,
         space = 8'b0000_0000
     }
     seven_seg_encoding_e;
 
-    seven_seg_encoding_e letter;
+    seven_seg_encoding_e word[10];
+    // 22L102
+    assign word[0] = space;
+    assign word[1] = space;
+    assign word[2] = space;
+    assign word[3] = space;
+    assign word[4] = two;
+    assign word[5] = two;
+    assign word[6] = L;
+    assign word[7] = one;
+    assign word[8] = zero;
+    assign word[9] = two;
 
+    wire [3:0] inx_digit [4];
+    assign inx_digit[0] = cnt[SPEEDRUNLINE+3:SPEEDRUNLINE];
+    assign inx_digit[1] = cnt[SPEEDRUNLINE+3:SPEEDRUNLINE] + 'd1;
+    assign inx_digit[2] = cnt[SPEEDRUNLINE+3:SPEEDRUNLINE] + 'd2;
+    assign inx_digit[3] = cnt[SPEEDRUNLINE+3:SPEEDRUNLINE] + 'd3;
+
+    seven_seg_encoding_e letter;
     always_comb
       case (4' (shift_reg))
-      4'b1000: letter = F;
-      4'b0100: letter = P;
-      4'b0010: letter = G;
-      4'b0001: letter = A;
-      default: letter = space;
+          4'b1000: letter = seven_seg_encoding_e'(word[inx_digit[0]]);
+          4'b0100: letter = seven_seg_encoding_e'(word[inx_digit[1]]);
+          4'b0010: letter = seven_seg_encoding_e'(word[inx_digit[2]]);
+          4'b0001: letter = seven_seg_encoding_e'(word[inx_digit[3]]);
+          default: letter = space;
       endcase
 
     assign abcdefgh = letter;
