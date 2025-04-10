@@ -65,7 +65,7 @@ export WAVES
 # Temporary directories and files
 TEMP_DIRS   = $(shell find $(OUT) -maxdepth 2 -path "*/*" -type d)
 TEMP_DIRS += $(shell find ../quartus_prj/ -mindepth 1 -maxdepth 2 -path "*/*" -type d)
-TEMP_FILES = $(shell find ../quartus_prj/ ! -name "*.q*f" -type f)
+TEMP_FILES = $(shell find ../quartus_prj/ ! -name "*.q*f" -path "*/*"  -type f)
 
 # Compilation options
 COMP_OPTS = 

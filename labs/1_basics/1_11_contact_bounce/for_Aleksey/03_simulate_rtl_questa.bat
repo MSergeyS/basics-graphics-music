@@ -18,9 +18,7 @@ echo RTL simulation in Questa...!ESC![90m
     echo !ESC![92mSimulation done!ESC![0m
   )
 
-
 echo !ESC![92mTestbenches passed successfully!ESC![0m
-
 
 :: Sets up the ESC string for use later in this script
 :setESC
