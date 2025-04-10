@@ -1,12 +1,10 @@
-// Asynchronous reset here is needed for one of FPGA boards we use
-
-`include "config.svh"
+// модуль управления 7-сегментым индикатором
 
 module seven_segment_display
 # (
     parameter w_digit   = 2,
     parameter clk_mhz   = 50,
-    parameter update_hz = 4 // Looks like a sane default
+    parameter update_hz = 400
 )
 (
     input  clk,
@@ -81,7 +79,7 @@ module seven_segment_display
     always_ff @ (posedge clk or posedge rst)
         if (rst)
             index <= '0;
-        else if (cnt[15:0] == 16'b0) // Perhaps a check is needed that w_cnt >= 16
+        else if (cnt[w_cnt - 1:0] == w_cnt'(0)) // Perhaps a check is needed that w_cnt >= 16
             index <= (index == w_index' (w_digit - 1) ?
                 w_index' (0) : index + 1'd1);
 
